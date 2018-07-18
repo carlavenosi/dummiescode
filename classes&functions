@@ -160,7 +160,7 @@ class FeatureSelectionExecuter(BaseEstimator,TransformerMixin):
 def modelmetrics(name,y_pred,y_pred_proba,y_real,time_model):
     
     df_score = pd.concat([pd.DataFrame(data=y_pred_proba[:,1], columns=['score']),
-                       pd.DataFrame(data=y_test_2)], axis=1)
+                       pd.DataFrame(data=y_test)], axis=1)
     df_score = df_score.sort_values('score',ascending=False).reset_index(drop=True)
     df_score['bin'] = pd.qcut(df_score.index, 8)
     score = df_score.groupby(by='bin').agg({'score':{'score_min':min,'score_max':max}, 'TARGET':{'bads':sum,'total':'count'}})
