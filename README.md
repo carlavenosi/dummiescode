@@ -1,0 +1,2 @@
+# dummiescode
+Code for dummies
