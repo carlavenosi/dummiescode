@@ -1,0 +1,197 @@
+class ImputerMostFrequentCat(BaseEstimator, TransformerMixin):
+    def __init__(self,parameter):
+        self.a = parameter
+        self.b = []
+        
+    def fit(self,X,*_):
+        for i in self.a:
+            self.b.append(X[i].mode()[0])
+        return self
+    
+    def transform(self,Z,*_):
+        L = Z.copy()
+        h=0
+        for i in self.a:
+            L[i]=L[i].apply(lambda x: self.b[h] if pd.isnull(x) else x)
+            h=h+1
+        return L
+
+class ImputerNewNullCat(BaseEstimator, TransformerMixin):
+    def __init__(self,parameter):
+        self.a = parameter
+        
+    def fit(self,X,*_):
+        return self
+    
+    def transform(self,Z,*_):
+        L = Z.copy()
+        for i in self.a:
+            L[i]=L[i].apply(lambda x: 'null_cat' if pd.isnull(x) else x)
+        return L
+
+class LabelEncoderNET(BaseEstimator, TransformerMixin):
+    def __init__(self,name_variable, dic_labels):
+        self.a = name_variable
+        self.b = dic_labels
+        
+    def fit(self,X,*_):
+        return self
+    
+    def transform(self,Z,*_):
+        L = Z.copy()
+        L[self.a]=Z[self.a].apply(lambda x: self.b[x])
+        return L
+
+class DropVariables(BaseEstimator, TransformerMixin):
+    def __init__(self,list_variables):
+        self.a = list_variables
+        
+    def fit(self,X,*_):
+        return self
+        
+    def transform(self,Z,*_):
+        L = Z.copy()
+        return L.drop(columns=self.a)
+
+class Dummies(BaseEstimator, TransformerMixin):
+    def __init__(self,list_variables):
+        self.a = list_variables
+        self.b = {}
+        
+    def fit(self,X,*_):
+        for i in self.a:
+            self.b.update({i: list(pd.get_dummies(X[i]).columns)})
+        return self
+        
+    def transform(self,Z,*_):
+        L = Z.copy()
+        for h in self.a:
+            for g in self.b[h]:
+                L[h+'_'+g]=L[h].apply(lambda x: 1 if x==g else 0)
+        return L.drop(columns=self.a)
+
+class ImputerZero(BaseEstimator, TransformerMixin):
+    def __init__(self,parameter):
+        self.a = parameter
+        
+    def fit(self,X,*_):
+        return self
+    
+    def transform(self,Z,*_):
+        L = Z.copy()
+        for i in self.a:
+            L[i]=L[i].apply(lambda x: 0 if np.isnan(x) else x)
+        return L
+
+class ImputerMax(BaseEstimator, TransformerMixin):
+    def __init__(self,parameter):
+        self.a = parameter
+        self.b = {}
+        
+    def fit(self,X,*_):
+        for i in self.a:
+            self.b.update({i: X[i].max()})
+        return self
+    
+    def transform(self,Z,*_):
+        L = Z.copy()
+        for i in self.a:
+            L[i]=L[i].apply(lambda x: self.b[i] if np.isnan(x) else x)
+        return L
+
+class ImputerMean(BaseEstimator, TransformerMixin):
+    def __init__(self):
+        self.a = []
+        self.b = {}
+        
+    def fit(self,X,*_):
+        for i in X.columns:
+            if ((X[i].dtype=='float64')|(X[i].dtype=='int64')):
+                self.a.append(i)
+        for i in self.a:
+            self.b.update({i: X[i].mean()})
+        return self
+    
+    def transform(self,Z,*_):
+        L = Z.copy()
+        for i in self.a:
+            L[i]=L[i].apply(lambda x: self.b[i] if np.isnan(x) else x)
+        return L
+
+class MinMaxScalerNeg(BaseEstimator, TransformerMixin):
+    def __init__(self):
+        self.a = {}
+        self.b = {}
+        
+    def fit(self,X,*_):
+        for i in X.columns:
+            if X[i].min()>=0:
+                self.a.update({i: X[i].min()})
+            elif X[i].min()<0:
+                self.a.update({i: X[i].min()*1.1})  
+        for i in X.columns:
+            if X[i].max()>=0:
+                self.b.update({i: X[i].max()})
+            elif X[i].max()<0:
+                self.b.update({i: X[i].max()*0.9}) 
+        return self
+    
+    def transform(self,Z,*_):
+        L = Z.copy()
+        for i in L.columns:
+            L[i]=L[i].apply(lambda x: (x-self.a[i])/(self.b[i]-self.a[i]))
+        return L
+
+class FeatureSelectionExecuter(BaseEstimator,TransformerMixin):
+    def __init__(self,instclass,withy):
+        self.a=instclass
+        self.b=withy
+        
+    def fit(self,X,y,*_):
+        if self.b == "No":
+            self.a.fit(X)
+        else:
+            self.a.fit(X,y)
+        return self
+    
+    def transform(self,Z,*_): 
+        return pd.DataFrame(self.a.transform(Z), columns=Z.columns[self.a.get_support()])
+
+def modelmetrics(name,y_pred,y_pred_proba,y_real,time_model):
+    
+    df_score = pd.concat([pd.DataFrame(data=y_pred_proba[:,1], columns=['score']),
+                       pd.DataFrame(data=y_test_2)], axis=1)
+    df_score = df_score.sort_values('score',ascending=False).reset_index(drop=True)
+    df_score['bin'] = pd.qcut(df_score.index, 8)
+    score = df_score.groupby(by='bin').agg({'score':{'score_min':min,'score_max':max}, 'TARGET':{'bads':sum,'total':'count'}})
+    score=score.reset_index(level=0, col_fill='bin')
+    score.columns = score.columns.droplevel(level=0)
+    score['goods']=score['total']-score['bads']
+    score['bad_rate']=score['bads']/score['total']
+    score['bads_cum']=score['bads'].cumsum()
+    score['goods_cum']=score['goods'].cumsum()
+    score['total_cum']=score['total'].cumsum()
+    score['bads_cum_rate']=score['bads_cum']/score['bads'].sum()
+    score['goods_cum_rate']=score['goods_cum']/score['goods'].sum()
+    score['total_cum_rate']=score['total_cum']/score['total'].sum()
+    score['KS']=score['bads_cum_rate']-score['goods_cum_rate']
+    ks=score['KS'].max()
+    
+    cm = confusion_matrix(y_real, y_pred)
+    fpr,tpr,umbral = roc_curve(y_real, y_pred_proba[:,1])
+    d = {'TP':cm[1][1],
+         'TN':cm[0][0],
+         'FP':cm[0][1],
+         'FN':cm[1][0],
+         'Accuracy':accuracy_score(y_real, y_pred),
+         'Recall':recall_score(y_real, y_pred),
+         'Precision':precision_score(y_real, y_pred),
+         'F1':f1_score(y_real, y_pred),
+         'AUC':auc(fpr,tpr),
+         'Gini':2*auc(fpr,tpr)-1,
+         'KS':ks, 
+         'Minutes':time_model}
+    df = pd.DataFrame(d, index=[name])
+    df=df.reindex(columns=['TP','TN','FP','FN','Accuracy','Recall','Precision','F1','AUC','Gini','KS','Minutes'])
+    
+    return score, df
