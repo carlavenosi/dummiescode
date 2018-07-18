@@ -1,0 +1,17 @@
+class ImputerMostFrequentCat(BaseEstimator, TransformerMixin):
+    def __init__(self,parameter):
+        self.a = parameter
+        self.b = []
+        
+    def fit(self,X,*_):
+        for i in self.a:
+            self.b.append(X[i].mode()[0])
+        return self
+    
+    def transform(self,Z,*_):
+        L = Z.copy()
+        h=0
+        for i in self.a:
+            L[i]=L[i].apply(lambda x: self.b[h] if pd.isnull(x) else x)
+            h=h+1
+        return L
